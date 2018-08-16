@@ -9,12 +9,11 @@ from avalon.vendor.Qt import QtWidgets, QtCore, QtGui
 import os
 
 # Workaround to PyCharm not autocompleting, without mucking in Qt.py source.
-#if False: from PyQt5 import QtWidgets, QtCore, QtGui
+# if False: from PyQt5 import QtWidgets, QtCore, QtGui
 
 from . import mayalib
 
-
-#reload(mayalib)
+# reload(mayalib)
 
 
 class CustomListModel(QtCore.QAbstractListModel):
@@ -140,16 +139,24 @@ class App(QtWidgets.QWidget):
 
         overwrite_hlayout = QtWidgets.QHBoxLayout()
         overwrite_label = QtWidgets.QLabel("Overwrite")
-        overwrite_value = QtWidgets.QRadioButton()
+        overwrite_value = QtWidgets.QCheckBox()
         overwrite_value.setChecked(False)
         overwrite_hlayout.addWidget(overwrite_label)
         overwrite_hlayout.addWidget(overwrite_value)
+
+        preserve_hlayout = QtWidgets.QHBoxLayout()
+        preserve_label = QtWidgets.QLabel("Preserve Color Space ")
+        preserve_value = QtWidgets.QCheckBox()
+        preserve_value.setChecked(True)
+        preserve_hlayout.addWidget(preserve_label)
+        preserve_hlayout.addWidget(preserve_value)
 
         options_vlayout.addLayout(postfix_hlayout)
         options_vlayout.addLayout(compression_hlayout)
         options_vlayout.addLayout(linear_hlayout)
         options_vlayout.addLayout(tilesize_hlayout)
         options_vlayout.addLayout(overwrite_hlayout)
+        options_vlayout.addLayout(preserve_hlayout)
 
         options_grp.setLayout(options_vlayout)
         # endregion options
@@ -213,6 +220,8 @@ class App(QtWidgets.QWidget):
         self.source_button = source_button
         self.convert_button = convert_button
         self.refresh_button = refresh_button
+        self.overwritevalue = overwrite_value
+        self.preserve_value = preserve_value
 
         self.setLayout(layout)
 
@@ -258,7 +267,7 @@ class App(QtWidgets.QWidget):
         indices = self.file_node_list.selectedIndexes()
         for id in indices:
             nodes.append(self.file_node_list.model().index(id.row()).data(role=QtCore.Qt.UserRole))
-        mayalib.revert_nodes(nodes, self.postfix_value.text(), source)
+        mayalib.revert_nodes(nodes, self.postfix_value.text(), source, self.preserve_value.isChecked())
         self.refresh()
         # for index in indices:
         #     self.file_node_list.selectionModel().select(index,
@@ -274,7 +283,14 @@ class App(QtWidgets.QWidget):
         self.exr_button.setDisabled(True)
         # self.source_button.setDisabled(True)
         try:
-            mayalib.convert_files(self.executable_filename.text(), nodes)
+            mayalib.convert_files(self.executable_filename.text(), nodes,
+                                  preserve = self.preserve_value.isChecked(),
+                                  threads=8,
+                                  overwrite=self.overwritevalue.isChecked(),
+                                  compression=self.compression_value.currentText(),
+                                  linear=self.linear_value.currentText(),
+                                  postfix=self.postfix_value.text(),
+                                  tile_size=self.tilesize_value.value())
         except Exception as e:
             raise e
         finally:

@@ -109,11 +109,19 @@ def mark_for_conversion(filenodes=[]):
     return conversion_collection
 
 
-def convert_files(executable_path, data=[]):
+def convert_files(executable_path, data, preserve, postfix='_tiled', threads=8,
+                  overwrite=False, compression='zips', tile_size=64,
+                  linear='off'):
     """
     Convert a list of files to tiled exrs
 
     Args:
+        overwrite (bool): Overwrite existing files?
+        compression (str): EXR compression type, allowed values: 'none', 'rle', 'zip', 'zips', 'piz', 'pxr24', 'b44', 'b44a', 'dwaa', 'dwab'
+        tile_size (int): Size of the tiles
+        linear (str): Convert color space to linear, allowed values: 'auto', 'on', 'off'
+        threads: how many conversions can run at the same time
+        executable_path: file location of vray img2tiledexr executable
         data: list of node tuples (as returned by get_file_texture_model_data)
 
     Returns:
@@ -121,6 +129,7 @@ def convert_files(executable_path, data=[]):
     """
 
     file_nodes = zip(*data)[1]
+    file_color_spaces = []
     file_paths = []
     for node in file_nodes:
         if cmds.attributeQuery('tiledEXRSource', node=node, exists=True):
@@ -131,12 +140,19 @@ def convert_files(executable_path, data=[]):
                              type="string")
         else:
             file = cmds.getAttr('{}.fileTextureName'.format(node))
+
         if file and os.path.exists(file) and os.path.isfile(file):
             file_paths.append(file)
+            file_color_spaces.append(cmds.getAttr('{}.colorSpace'.format(node)))
 
     # start conversion:
-    result = None
-    result = img2tiledexrtool.convert_img_2_exr(executable_path, file_paths)
+    result = img2tiledexrtool.convert_img_2_exr(executable_path, file_paths,
+                                                postfix=postfix,
+                                                threads=threads,
+                                                overwrite=overwrite,
+                                                compression=compression,
+                                                linear=linear,
+                                                tile_size=tile_size)
 
     # done, reconnect files that converted succesfully and set attributes
     # result should contain a list of tuples containing:
@@ -154,8 +170,10 @@ def convert_files(executable_path, data=[]):
                 if not cmds.attributeQuery('tiledEXR', node=node, exists=True):
                     cmds.addAttr(node, longName='tiledEXR', minValue=0, maxValue=2, at='byte')
                 cmds.setAttr('{}.tiledEXR'.format(node), 2)
+                if preserve:
+                    cmds.setAttr('{}.colorSpace'.format(node), file_color_spaces[idx])
 
-def revert_nodes(file_nodes, postfix, set_to_source):
+def revert_nodes(file_nodes, postfix, set_to_source, preserve):
     """
     Revert/switch a file node to it's source, or generated exr
     Args:
@@ -184,9 +202,12 @@ def revert_nodes(file_nodes, postfix, set_to_source):
 
                     file = '{}{}.exr'.format(os.path.splitext(source)[0],
                                              postfix)
+                    color_space = cmds.getAttr('{}.colorSpace'.format(node[1]))
+                    print(color_space)
                     cmds.setAttr('{}.fileTextureName'.format(node[1]), file, type="string")
                     cmds.setAttr('{}.tiledEXR'.format(node[1]), 2)
-
+                    if preserve:
+                        cmds.setAttr('{}.colorSpace'.format(node[1]), color_space, type="string")
 
 def get_tiled_exr_exe_dir():
     """

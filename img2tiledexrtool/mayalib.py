@@ -171,7 +171,7 @@ def convert_files(executable_path, data, preserve, postfix='_tiled', threads=8,
                     cmds.addAttr(node, longName='tiledEXR', minValue=0, maxValue=2, at='byte')
                 cmds.setAttr('{}.tiledEXR'.format(node), 2)
                 if preserve:
-                    cmds.setAttr('{}.colorSpace'.format(node), file_color_spaces[idx])
+                    cmds.setAttr('{}.colorSpace'.format(node), file_color_spaces[idx], type="string")
 
 def revert_nodes(file_nodes, postfix, set_to_source, preserve):
     """

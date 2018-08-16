@@ -26,8 +26,8 @@ class ConvertImg2EXRThread(threading.Thread):
             try:
                 execute = '"{}" "{}" "{}" {}'.format(executable, file_in, file_out, options)
                 if os.path.isfile(file_out) is False or overwrite is True:
-                    #subprocess.call( execute )
-                    print( "executing: {}".format( execute ))
+                    subprocess.call( execute )
+                    #print( "executing: {}".format( execute ))
                 else:
                     status = 'File not converted, file already exists and overwrite is set to False.'
             except Exception as e:
@@ -78,7 +78,6 @@ def convert_img_2_exr(executable, file_paths, threads = 8, overwrite=False, post
     result = []
     for i in range(out_queue.qsize()):
         result.append(out_queue.get())
-    print(result)
     return result
 
 # filenodes = [(filenode, filenode.fileTextureName.get()) for filenode in pm.ls(et=pm.nodetypes.File) if not filenode.fileTextureName.get().lower().endswith('_tiled.exr') and filenode.hasAttr('tiledEXR') and filenode.tiledEXR.get()]

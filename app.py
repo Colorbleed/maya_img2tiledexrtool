@@ -1,25 +1,72 @@
-from avalon.vendor.Qt import QtWidgets, QtCore
+from avalon.vendor.Qt import QtWidgets, QtCore, QtGui
+import os
 
-from . import img2tiledexrtool
+# Workaround to PyCharm not autocompleting, without mucking in Qt.py source.
+#if False: from PyQt5 import QtWidgets, QtCore, QtGui
+
 from . import mayalib
-reload(mayalib)
-#import img2tiledexrtool
-#import mayalib
+
+#reload(mayalib)
+
+
+class CustomListModel(QtCore.QAbstractListModel):
+    def __init__(self, data, parent=None):
+        super(CustomListModel, self).__init__(parent)
+        self.items = data
+        for item in data:
+            index = QtCore.QModelIndex()
+            self.beginInsertRows(index, 0, 0)
+        self.endInsertRows()
+        # self.dat = data
+        self.icons = []
+        dir = os.path.dirname(os.path.realpath(__file__))
+        self.icons.append(QtGui.QIcon(os.path.join(dir, 'res/not_converted.png')))
+        self.icons.append(QtGui.QIcon(os.path.join(dir, 'res/source.png')))
+        self.icons.append(QtGui.QIcon(os.path.join(dir, 'res/exr.png')))
+
+    def rowCount(self, parent=None, *args, **kwargs):
+        return len(self.items)
+
+    def data(self, index, role=None):
+        if not index.isValid() or not (
+                0 <= index.row() < len(self.items)):  return QtCore.QVariant()
+        if role == QtCore.Qt.DisplayRole:
+            return self.items[index.row()][1]
+        elif role == QtCore.Qt.DecorationRole:
+            return self.icons[self.items[index.row()][0]]
+        elif role == QtCore.Qt.UserRole:
+            return self.items[index.row()]
+    #
+    # def addItems(self):
+    #     for key in self.modelDict:
+    #         index=QtCore.QModelIndex()
+    #         self.beginInsertRows(index, 0, 0)
+    #         self.items.append(key)
+    #     self.endInsertRows()
+
+
+class CustomList(QtWidgets.QListView):
+    def __init__(self, parent=None):
+        super(CustomList, self).__init__(parent)
+
 
 class App(QtWidgets.QWidget):
-    """Main application for alter settings per render job (layer)"""
+    """Main application for tiled EXR conversion"""
     file_nodes = []
 
     def __init__(self, parent=None):
         QtWidgets.QWidget.__init__(self, parent)
-
         self.setObjectName("convertImg2TiledEXR")
         self.setWindowTitle("Image to tiled EXR converter")
         self.setWindowFlags(QtCore.Qt.Window)
-        #self.setFixedSize(250, 500)
-        self.resize(250,500)
+        # self.setFixedSize(250, 500)
+        self.resize(480, 800)
+
 
         self.setup_ui()
+        self.setup_connections()
+
+        self.postfix_value.setText("_tiled")
         self.create_compression_options()
         self.create_linearcolor_options()
         self.populate_file_list()
@@ -36,20 +83,24 @@ class App(QtWidgets.QWidget):
         executable_hlayout = QtWidgets.QHBoxLayout()
         executable_filename = QtWidgets.QLineEdit()
         executable_button = QtWidgets.QPushButton()
-        executable_button.setIcon(self.style().standardIcon(getattr(QtWidgets.QStyle, 'SP_DialogOpenButton')))
+        executable_button.setIcon(self.style().standardIcon(
+            getattr(QtWidgets.QStyle, 'SP_DialogOpenButton')))
         executable_hlayout.addWidget(executable_filename)
         executable_hlayout.addWidget(executable_button)
 
         executable_vlayout.addLayout(executable_hlayout)
-
         executable_grp.setLayout(executable_vlayout)
-
         # endregion executable
+
         # region options
         options_grp = QtWidgets.QGroupBox("Options")
         options_vlayout = QtWidgets.QVBoxLayout()
 
-
+        postfix_hlayout = QtWidgets.QHBoxLayout()
+        postfix_label = QtWidgets.QLabel("Postfix")
+        postfix_value = QtWidgets.QLineEdit()
+        postfix_hlayout.addWidget(postfix_label)
+        postfix_hlayout.addWidget(postfix_value)
 
         compression_hlayout = QtWidgets.QHBoxLayout()
         compression_label = QtWidgets.QLabel("Compression")
@@ -69,7 +120,7 @@ class App(QtWidgets.QWidget):
         tilesize_value.setValue(64)
         tilesize_hlayout.addWidget(tilesize_label)
         tilesize_hlayout.addWidget(tilesize_value)
-        
+
         overwrite_hlayout = QtWidgets.QHBoxLayout()
         overwrite_label = QtWidgets.QLabel("Overwrite")
         overwrite_value = QtWidgets.QRadioButton()
@@ -77,6 +128,7 @@ class App(QtWidgets.QWidget):
         overwrite_hlayout.addWidget(overwrite_label)
         overwrite_hlayout.addWidget(overwrite_value)
 
+        options_vlayout.addLayout(postfix_hlayout)
         options_vlayout.addLayout(compression_hlayout)
         options_vlayout.addLayout(linear_hlayout)
         options_vlayout.addLayout(tilesize_hlayout)
@@ -86,41 +138,47 @@ class App(QtWidgets.QWidget):
         # endregion options
 
         # Group box for type of machine list
-        list_type_grp = QtWidgets.QGroupBox("Machine List Type")
-        list_type_hlayout = QtWidgets.QHBoxLayout()
+        list_type_grp = QtWidgets.QGroupBox("File Texture Nodes")
+        list_type_hlayout = QtWidgets.QVBoxLayout()
 
-        black_list = QtWidgets.QRadioButton("Blacklist")
-        black_list.setChecked(True)
-        black_list.setToolTip("List machines which the job WILL NOT use")
+        refresh_button = QtWidgets.QPushButton("Refresh")
+        refresh_button.setToolTip("Refresh texture lists")
+        refresh_button.setIcon(self.style().standardIcon(
+            getattr(QtWidgets.QStyle, 'SP_BrowserReload')))
 
-        white_list = QtWidgets.QRadioButton("Whitelist")
-        white_list.setToolTip("List machines which the job WILL use")
-
-        list_type_hlayout.addWidget(black_list)
-        list_type_hlayout.addWidget(white_list)
-        list_type_grp.setLayout(list_type_hlayout)
-
-        # region Machine selection
+        # region file node list
         file_node_hlayout = QtWidgets.QVBoxLayout()
         file_node_hlayout.setSpacing(2)
-        file_node_list = QtWidgets.QListWidget()
+        file_node_list = QtWidgets.QListView()
+        file_node_list.setAlternatingRowColors(True)
+        file_node_list.setSelectionBehavior(
+            QtWidgets.QAbstractItemView.SelectRows)
+        file_node_list.setSelectionMode(
+            QtWidgets.QAbstractItemView.MultiSelection)
+        # endregion
 
-        # Buttons
+        # conversion buttons
         button_vlayout = QtWidgets.QHBoxLayout()
         button_vlayout.setAlignment(QtCore.Qt.AlignCenter)
         button_vlayout.setSpacing(4)
 
-        add_machine_btn = QtWidgets.QPushButton(">")
-        add_machine_btn.setFixedWidth(25)
+        convert_button = QtWidgets.QPushButton("Convert")
+        exr_button = QtWidgets.QPushButton("Show EXR")
+        source_button = QtWidgets.QPushButton("Show Source")
+        set_source_button = QtWidgets.QPushButton("Set new source")
+        set_source_button.setDisabled(True)
 
-        remove_machine_btn = QtWidgets.QPushButton("<")
-        remove_machine_btn.setFixedWidth(25)
-
-        button_vlayout.addWidget(add_machine_btn)
-        button_vlayout.addWidget(remove_machine_btn)
+        button_vlayout.addWidget(convert_button)
+        button_vlayout.addWidget(exr_button)
+        button_vlayout.addWidget(source_button)
+        button_vlayout.addWidget(set_source_button)
 
         file_node_hlayout.addWidget(file_node_list)
         file_node_hlayout.addLayout(button_vlayout)
+
+        list_type_hlayout.addWidget(refresh_button)
+        list_type_hlayout.addLayout(file_node_hlayout)
+        list_type_grp.setLayout(list_type_hlayout)
 
         layout.addWidget(executable_grp)
         layout.addWidget(options_grp)
@@ -129,42 +187,84 @@ class App(QtWidgets.QWidget):
 
         # Enable access for all methods
         self.file_node_list = file_node_list
-        self.black_list = black_list
-        self.white_list = white_list
-
+        self.postfix_value = postfix_value
         self.compression_value = compression_value
         self.linear_value = linear_value
         self.tilesize_value = tilesize_value
         self.executable_filename = executable_filename
+        self.exr_button = exr_button
+        self.source_button = source_button
+        self.convert_button = convert_button
+        self.refresh_button = refresh_button
 
         self.setLayout(layout)
 
+    def setup_connections(self):
+        self.refresh_button.clicked.connect(self.refresh)
+        self.exr_button.clicked.connect(self.show_exr)
+        self.source_button.clicked.connect(self.show_source)
+        self.convert_button.clicked.connect(self.convert)
+
     def create_compression_options(self):
-        compressions = ['none', 'rle', 'zip', 'zips', 'piz', 'pxr24', 'b44', 'b44a', 'dwaa', 'dwab']
+        compressions = ['none', 'rle', 'zip', 'zips', 'piz', 'pxr24', 'b44',
+                        'b44a', 'dwaa', 'dwab']
 
         for compression in compressions:
             self.compression_value.addItem(compression)
         self.compression_value.setCurrentIndex(3)
 
     def create_linearcolor_options(self):
-        choises = ['auto', 'on', 'off']
-        for choise in choises:
+        choices = ['auto', 'on', 'off']
+        for choise in choices:
             self.linear_value.addItem(choise)
         self.linear_value.setCurrentIndex(2)
-        
+
     def populate_file_list(self):
-        self.file_node_list.clear()
-        self.file_nodes = mayalib.get_file_texture_nodes()
-        for node in self.file_nodes:
-            self.file_node_list.append(node)
+        self.file_nodes = mayalib.get_file_texture_model_data()
+        self.file_node_list.reset()
+        table_model = CustomListModel(self.file_nodes)
+        self.file_node_list.setModel(table_model)
 
     def refresh(self):
+        # self.create_compression_options()
+        # self.create_linearcolor_options()
+        print('refreshing')
+        self.populate_file_list()
 
-        self.compression_value.clear()
-        self.linear_value.clear()
 
-        self.create_compression_options()
-        self.create_linearcolor_options()
+    def show_exr(self):
+        self.show_source(False)
+
+    def show_source(self, source=True):
+        indices = self.file_node_list.selectedIndexes()
+        nodes = []
+        indices = self.file_node_list.selectedIndexes()
+        for id in indices:
+            nodes.append(self.file_node_list.model().index(id.row()).data(role=QtCore.Qt.UserRole))
+        mayalib.revert_nodes(nodes, self.postfix_value.text(), source)
+        self.refresh()
+        # for index in indices:
+        #     self.file_node_list.selectionModel().select(index,
+        #                                                 QtCore.QItemSelectionModel.Select)
+
+    def convert(self):
+        nodes = []
+        indices = self.file_node_list.selectedIndexes()
+        for id in indices:
+            nodes.append(self.file_node_list.model().index(id.row()).data(role=QtCore.Qt.UserRole))
+        self.convert_button.setDisabled(True)
+        self.source_button.setDisabled(True)
+        self.exr_button.setDisabled(True)
+        # self.source_button.setDisabled(True)
+        try:
+            mayalib.convert_files(self.executable_filename.text(), nodes)
+        except Exception as e:
+            raise e
+        finally:
+            self.convert_button.setDisabled(False)
+            self.source_button.setDisabled(False)
+            self.exr_button.setDisabled(False)
+        self.refresh()
 
 def launch():
     global application

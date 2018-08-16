@@ -1,8 +1,19 @@
+"""
+Modulethat contains the img2exr thread class and function to generate the
+tiled exr files.
+
+Example:
+    files = ["P:/Projects/test1/assets/snow/work/lookdev/maya/images/grass_CLR02.tga",
+             "P:/Projects/test1/assets/snow/work/lookdev/maya/images/grass_CLR03.tga",
+             "P:/Projects/test1/assets/snow/work/lookdev/maya/images/grass_CLR01.tga"]
+    convert_img_2_exr('C:/Program Files/Chaos Group/V-Ray/Maya 2018 for x64/bin/img2tiledexr.exe', files)
+"""
+
 import sys
 import threading
 import subprocess
-import shlex
 import os
+
 if sys.version_info[0] == 2:
     import Queue as queue
 else:
@@ -79,10 +90,3 @@ def convert_img_2_exr(executable, file_paths, threads = 8, overwrite=False, post
     for i in range(out_queue.qsize()):
         result.append(out_queue.get())
     return result
-
-# filenodes = [(filenode, filenode.fileTextureName.get()) for filenode in pm.ls(et=pm.nodetypes.File) if not filenode.fileTextureName.get().lower().endswith('_tiled.exr') and filenode.hasAttr('tiledEXR') and filenode.tiledEXR.get()]
-
-# files = ["P:/Projects/test1/assets/snow/work/lookdev/maya/images/grass_CLR02.tga",
-#          "P:/Projects/test1/assets/snow/work/lookdev/maya/images/grass_CLR03.tga",
-#          "P:/Projects/test1/assets/snow/work/lookdev/maya/images/grass_CLR01.tga"]
-# convert_img_2_exr('C:/Program Files/Chaos Group/V-Ray/Maya 2018 for x64/bin/img2tiledexr.exe', files)

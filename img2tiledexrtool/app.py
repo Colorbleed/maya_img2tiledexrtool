@@ -1,28 +1,44 @@
+"""
+This module contains the UI parts for the mg2tiledexr toolset
+
+In Maya running this script without a selection will show all file nodes in
+scene. If a selection is made, it will filter and show all file nodes in your
+selection.
+"""
 from avalon.vendor.Qt import QtWidgets, QtCore, QtGui
 import os
 
 # Workaround to PyCharm not autocompleting, without mucking in Qt.py source.
 #if False: from PyQt5 import QtWidgets, QtCore, QtGui
 
-from . import mayalib
+from img2tiledexrtool.img2tiledexrtool import mayalib
+
 
 #reload(mayalib)
 
 
 class CustomListModel(QtCore.QAbstractListModel):
+    """
+    Custom model for our listview that shows an icon and node name
+    """
     def __init__(self, data, parent=None):
         super(CustomListModel, self).__init__(parent)
         self.items = data
+        index = QtCore.QModelIndex()
+        self.beginInsertRows(index, 0, len(data))
         for item in data:
-            index = QtCore.QModelIndex()
             self.beginInsertRows(index, 0, 0)
+            pass
         self.endInsertRows()
-        # self.dat = data
+
         self.icons = []
-        dir = os.path.dirname(os.path.realpath(__file__))
-        self.icons.append(QtGui.QIcon(os.path.join(dir, 'res/not_converted.png')))
-        self.icons.append(QtGui.QIcon(os.path.join(dir, 'res/source.png')))
-        self.icons.append(QtGui.QIcon(os.path.join(dir, 'res/exr.png')))
+        app_path = os.path.dirname(os.path.realpath(__file__))
+        self.icons.append(QtGui.QIcon(os.path.join(app_path, 'res/not_converted.png')))
+        self.icons.append(QtGui.QIcon(os.path.join(app_path, 'res/source.png')))
+        self.icons.append(QtGui.QIcon(os.path.join(app_path, 'res/exr.png')))
+        # self.icons.append(QtGui.QIcon('res/not_converted.png'))
+        # self.icons.append(QtGui.QIcon('res/source.png'))
+        # self.icons.append(QtGui.QIcon('res/exr.png'))
 
     def rowCount(self, parent=None, *args, **kwargs):
         return len(self.items)
@@ -36,7 +52,7 @@ class CustomListModel(QtCore.QAbstractListModel):
             return self.icons[self.items[index.row()][0]]
         elif role == QtCore.Qt.UserRole:
             return self.items[index.row()]
-    #
+
     # def addItems(self):
     #     for key in self.modelDict:
     #         index=QtCore.QModelIndex()
@@ -45,9 +61,9 @@ class CustomListModel(QtCore.QAbstractListModel):
     #     self.endInsertRows()
 
 
-class CustomList(QtWidgets.QListView):
-    def __init__(self, parent=None):
-        super(CustomList, self).__init__(parent)
+# class CustomList(QtWidgets.QListView):
+#     def __init__(self, parent=None):
+#         super(CustomList, self).__init__(parent)
 
 
 class App(QtWidgets.QWidget):
@@ -55,13 +71,13 @@ class App(QtWidgets.QWidget):
     file_nodes = []
 
     def __init__(self, parent=None):
-        QtWidgets.QWidget.__init__(self, parent)
+        #QtWidgets.QWidget.__init__(self, parent)
+        super(App, self).__init__(parent)
         self.setObjectName("convertImg2TiledEXR")
         self.setWindowTitle("Image to tiled EXR converter")
         self.setWindowFlags(QtCore.Qt.Window)
         # self.setFixedSize(250, 500)
         self.resize(480, 800)
-
 
         self.setup_ui()
         self.setup_connections()
@@ -69,6 +85,7 @@ class App(QtWidgets.QWidget):
         self.postfix_value.setText("_tiled")
         self.create_compression_options()
         self.create_linearcolor_options()
+
         self.populate_file_list()
         self.executable_filename.setText(mayalib.get_tiled_exr_exe_dir())
 

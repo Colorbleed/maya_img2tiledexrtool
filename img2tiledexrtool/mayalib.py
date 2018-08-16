@@ -1,20 +1,24 @@
+"""
+This module contains the script that ui app uses to communicate with Maya
+
+TODO: We might be able to simply check for state without the int attr:
+If we use the current fileTexName (A) and compare with the stored
+fileTexNameSource (B) we can conclude that if B == None, we have no
+conversion, if A == B we have a conversion but are viewing the non
+converted file, if A != B and A.endswith.exr we have a conversion and we are
+viewing the exr.
+"""
 import logging
 import os
 import sys
 
 import maya.cmds as cmds
 
-from . import img2tiledexrtool
+from img2tiledexrtool.img2tiledexrtool import img2tiledexrtool
+
 #reload(img2tiledexrtool)
 
 log = logging.getLogger("img2exr Maya Lib")
-
-# TODO: We might be able to simply check for state without the int attr:
-# If we use the current fileTexName (A) and compare with the stored
-# fileTexNameSource (B) we can conclude that if B == None, we have no
-# conversion, if A == B we have a conversion but are viewing the non
-# converted file, if A != B and A.endswith.exr we have a conversion and we are
-# viewing the exr.
 
 def get_file_texture_model_data():
     """
@@ -72,7 +76,7 @@ def get_maya_install_dir():
 
 def mark_for_conversion(filenodes=[]):
     """
-
+    Not used at the moment
     Args:
         filenodes:
 
@@ -107,6 +111,7 @@ def mark_for_conversion(filenodes=[]):
 
 def convert_files(executable_path, data=[]):
     """
+    Convert a list of files to tiled exrs
 
     Args:
         data: list of node tuples (as returned by get_file_texture_model_data)
@@ -152,9 +157,13 @@ def convert_files(executable_path, data=[]):
 
 def revert_nodes(file_nodes, postfix, set_to_source):
     """
-
+    Revert/switch a file node to it's source, or generated exr
     Args:
-        file_nodes:
+        file_nodes: list of file nodes
+        postfix: the postfix script as used by the converter (to generate the
+            final exr file name.
+        set_to_source: bool that defines whether or not we need to set to source
+            or to the tiled exr
 
     Returns:
 

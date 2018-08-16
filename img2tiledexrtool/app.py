@@ -11,7 +11,7 @@ import os
 # Workaround to PyCharm not autocompleting, without mucking in Qt.py source.
 #if False: from PyQt5 import QtWidgets, QtCore, QtGui
 
-from img2tiledexrtool.img2tiledexrtool import mayalib
+from . import mayalib
 
 
 #reload(mayalib)

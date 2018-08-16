@@ -14,7 +14,7 @@ import sys
 
 import maya.cmds as cmds
 
-from img2tiledexrtool.img2tiledexrtool import img2tiledexrtool
+from . import img2tiledexrtool
 
 #reload(img2tiledexrtool)
 

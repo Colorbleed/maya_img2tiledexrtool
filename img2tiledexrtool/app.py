@@ -257,7 +257,6 @@ class App(QtWidgets.QWidget):
         print('refreshing')
         self.populate_file_list()
 
-
     def show_exr(self):
         self.show_source(False)
 
@@ -281,7 +280,7 @@ class App(QtWidgets.QWidget):
         self.convert_button.setDisabled(True)
         self.source_button.setDisabled(True)
         self.exr_button.setDisabled(True)
-        # self.source_button.setDisabled(True)
+        #self.set_source_button.setDisabled(True)
         try:
             mayalib.convert_files(self.executable_filename.text(), nodes,
                                   preserve = self.preserve_value.isChecked(),
@@ -298,6 +297,7 @@ class App(QtWidgets.QWidget):
             self.source_button.setDisabled(False)
             self.exr_button.setDisabled(False)
         self.refresh()
+
 
 def launch():
     global application

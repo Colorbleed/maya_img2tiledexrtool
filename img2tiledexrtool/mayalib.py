@@ -158,25 +158,29 @@ def convert_files(executable_path, data, preserve, postfix='_tiled', threads=8,
     # result should contain a list of tuples containing:
     # ( file_in, file_out, status (None = succes))
     file_paths = list(zip(*data)[2])
+    #file_paths = [cmds.getAttr('{}.fileTextureName'.format(x[1])) for x in data]
     for item in result:
-        if 1== 1:#not item[2] == None:
-            idx = file_paths.index(item[0])
-            if not idx == None:
-                node = file_nodes[idx]
-                if not cmds.attributeQuery('tiledEXRSource', node=node, exists=True):
-                    cmds.addAttr(node, longName='tiledEXRSource', dt="string")
-                cmds.setAttr('{}.tiledEXRSource'.format(node), item[0], type="string")
-                cmds.setAttr('{}.fileTextureName'.format(node), item[1], type="string")
-                if not cmds.attributeQuery('tiledEXR', node=node, exists=True):
-                    cmds.addAttr(node, longName='tiledEXR', minValue=0, maxValue=2, at='byte')
-                cmds.setAttr('{}.tiledEXR'.format(node), 2)
-                if preserve:
-                    cmds.setAttr('{}.colorSpace'.format(node), file_color_spaces[idx], type="string")
+        idx = file_paths.index(item[0])
+        if idx is not None:
+            node = file_nodes[idx]
+            if not cmds.attributeQuery('tiledEXRSource', node=node, exists=True):
+                cmds.addAttr(node, longName='tiledEXRSource', dt="string")
+            cmds.setAttr('{}.tiledEXRSource'.format(node), item[0], type="string")
+            cmds.setAttr('{}.fileTextureName'.format(node), item[1], type="string")
+            if not cmds.attributeQuery('tiledEXR', node=node, exists=True):
+                cmds.addAttr(node, longName='tiledEXR', min=0, max=2, at='byte', w=False, r=True)
+            cmds.setAttr('{}.tiledEXR'.format(node), 2)
+            if preserve:
+                cmds.setAttr('{}.colorSpace'.format(node), file_color_spaces[idx], type="string")
+
 
 def revert_nodes(file_nodes, postfix, set_to_source, preserve):
     """
     Revert/switch a file node to it's source, or generated exr
     Args:
+        preserve: should we restore the file node colorspace settings after
+            conversion (when ignore colorspace is off, Maya makes a guess at
+            what to set the color space to.)
         file_nodes: list of file nodes
         postfix: the postfix script as used by the converter (to generate the
             final exr file name.

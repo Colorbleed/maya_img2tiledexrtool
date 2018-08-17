@@ -111,7 +111,7 @@ def mark_for_conversion(filenodes=[]):
 
 def convert_files(executable_path, data, preserve, postfix='_tiled', threads=8,
                   overwrite=False, compression='zips', tile_size=64,
-                  linear='off'):
+                  linear='off', preserver_filter=''):
     """
     Convert a list of files to tiled exrs
 
@@ -131,6 +131,7 @@ def convert_files(executable_path, data, preserve, postfix='_tiled', threads=8,
     file_nodes = zip(*data)[1]
     file_color_spaces = []
     file_paths = []
+    preserver_filters = preserver_filter.strip().split(',')
     for node in file_nodes:
         if cmds.attributeQuery('tiledEXRSource', node=node, exists=True):
             file = cmds.getAttr('{}.tiledEXRSource'.format(node))
@@ -158,7 +159,6 @@ def convert_files(executable_path, data, preserve, postfix='_tiled', threads=8,
     # result should contain a list of tuples containing:
     # ( file_in, file_out, status (None = succes))
     file_paths = list(zip(*data)[2])
-    #file_paths = [cmds.getAttr('{}.fileTextureName'.format(x[1])) for x in data]
     for item in result:
         idx = file_paths.index(item[0])
         if idx is not None:
@@ -171,10 +171,12 @@ def convert_files(executable_path, data, preserve, postfix='_tiled', threads=8,
                 cmds.addAttr(node, longName='tiledEXR', min=0, max=2, at='byte', w=False, r=True)
             cmds.setAttr('{}.tiledEXR'.format(node), 2)
             if preserve:
-                cmds.setAttr('{}.colorSpace'.format(node), file_color_spaces[idx], type="string")
+                if any(n in item[1] for n in preserver_filters):
+                    cmds.setAttr('{}.colorSpace'.format(node), file_color_spaces[idx], type="string")
 
 
-def revert_nodes(file_nodes, postfix, set_to_source, preserve):
+def revert_nodes(file_nodes, postfix, set_to_source, preserve,
+                 preserver_filter):
     """
     Revert/switch a file node to it's source, or generated exr
     Args:
@@ -191,27 +193,31 @@ def revert_nodes(file_nodes, postfix, set_to_source, preserve):
 
     """
 
+    preserver_filters = preserver_filter.strip().split(',')
+
     for node in file_nodes:
         if cmds.attributeQuery('tiledEXR', node=node[1], exists=True):
+            color_space = cmds.getAttr('{}.colorSpace'.format(node[1]))
             if set_to_source:
-                #if cmds.getAttr('{}.tiledEXR'.format(node[1])) == 2:pass
                 if cmds.attributeQuery('tiledEXRSource', node=node[1], exists=True):
                     source = cmds.getAttr('{}.tiledEXRSource'.format(node[1]))
                     cmds.setAttr('{}.fileTextureName'.format(node[1]), source, type="string")
                     cmds.setAttr('{}.tiledEXR'.format(node[1]), 1)
+                    if preserve:
+                        if any(n in source for n in preserver_filters):
+                            cmds.setAttr('{}.colorSpace'.format(node[1]), color_space, type="string")
             else:
-                #if cmds.getAttr('{}.tiledEXR'.format(node[1])) == 1:pass
                 if cmds.attributeQuery('tiledEXRSource', node=node[1], exists=True):
                     source = cmds.getAttr('{}.tiledEXRSource'.format(node[1]))
 
                     file = '{}{}.exr'.format(os.path.splitext(source)[0],
                                              postfix)
-                    color_space = cmds.getAttr('{}.colorSpace'.format(node[1]))
                     print(color_space)
                     cmds.setAttr('{}.fileTextureName'.format(node[1]), file, type="string")
                     cmds.setAttr('{}.tiledEXR'.format(node[1]), 2)
                     if preserve:
-                        cmds.setAttr('{}.colorSpace'.format(node[1]), color_space, type="string")
+                        if any(n in file for n in preserver_filters):
+                            cmds.setAttr('{}.colorSpace'.format(node[1]), color_space, type="string")
 
 def get_tiled_exr_exe_dir():
     """

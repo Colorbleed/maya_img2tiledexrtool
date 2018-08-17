@@ -82,6 +82,7 @@ class App(QtWidgets.QWidget):
         self.setup_connections()
 
         self.postfix_value.setText("_tiled")
+        self.preserve_filter_value.setText('NORMAL,NORMALS,GLOSS,BUMP,AO,OPACITY,DEPTH,ROUGHNESS')
         self.create_compression_options()
         self.create_linearcolor_options()
 
@@ -150,6 +151,12 @@ class App(QtWidgets.QWidget):
         preserve_value.setChecked(True)
         preserve_hlayout.addWidget(preserve_label)
         preserve_hlayout.addWidget(preserve_value)
+        
+        preserve_filter_hlayout = QtWidgets.QHBoxLayout()
+        preserve_filter_label = QtWidgets.QLabel("Preserver Filter")
+        preserve_filter_value = QtWidgets.QLineEdit()
+        preserve_filter_hlayout.addWidget(preserve_filter_label)
+        preserve_filter_hlayout.addWidget(preserve_filter_value)
 
         options_vlayout.addLayout(postfix_hlayout)
         options_vlayout.addLayout(compression_hlayout)
@@ -157,6 +164,7 @@ class App(QtWidgets.QWidget):
         options_vlayout.addLayout(tilesize_hlayout)
         options_vlayout.addLayout(overwrite_hlayout)
         options_vlayout.addLayout(preserve_hlayout)
+        options_vlayout.addLayout(preserve_filter_hlayout)
 
         options_grp.setLayout(options_vlayout)
         # endregion options
@@ -222,6 +230,7 @@ class App(QtWidgets.QWidget):
         self.refresh_button = refresh_button
         self.overwritevalue = overwrite_value
         self.preserve_value = preserve_value
+        self.preserve_filter_value = preserve_filter_value
 
         self.setLayout(layout)
 
@@ -266,7 +275,7 @@ class App(QtWidgets.QWidget):
         indices = self.file_node_list.selectedIndexes()
         for id in indices:
             nodes.append(self.file_node_list.model().index(id.row()).data(role=QtCore.Qt.UserRole))
-        mayalib.revert_nodes(nodes, self.postfix_value.text(), source, self.preserve_value.isChecked())
+        mayalib.revert_nodes(nodes, self.postfix_value.text(), source, self.preserve_value.isChecked(), self.preserve_filter_value.text())
         self.refresh()
         # for index in indices:
         #     self.file_node_list.selectionModel().select(index,
@@ -289,7 +298,8 @@ class App(QtWidgets.QWidget):
                                   compression=self.compression_value.currentText(),
                                   linear=self.linear_value.currentText(),
                                   postfix=self.postfix_value.text(),
-                                  tile_size=self.tilesize_value.value())
+                                  tile_size=self.tilesize_value.value(),
+                                  preserver_filter=self.preserve_filter_value.text())
         except Exception as e:
             raise e
         finally:
